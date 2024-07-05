@@ -49,4 +49,3 @@ Feel free to contribute by opening issues or pull requests on the [GitHub reposi
 ## License
 
 This script is distributed under the MIT License. See LICENSE for more information.
-
