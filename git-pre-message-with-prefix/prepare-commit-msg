@@ -1,0 +1,60 @@
+#!/bin/sh
+
+# This script modifies the commit message to prepend a prefix if not already present,
+# and append a list of edited/added/removed files at the end.
+
+commit_msg_file=$1
+commit_source=$2
+sha1=$3
+
+# Function to check if the commit message already starts with a prefix
+has_prefix() {
+  prefix_pattern='^(feat|fix|docs|style|refactor|test|chore|perf|ci)\(.*\):'
+  if grep -qE "$prefix_pattern" "$commit_msg_file"; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Function to determine the type of changes and generate the file list
+generate_file_list() {
+  created_files=$(git diff --cached --name-status | grep '^A' | sed 's/^A\s*/Created:  /')
+  deleted_files=$(git diff --cached --name-status | grep '^D' | sed 's/^D\s*/Deleted:  /')
+  updated_files=$(git diff --cached --name-status | grep '^M' | sed 's/^M\s*/Updated:  /')
+  
+  echo "\n\n$created_files\n$deleted_files\n$updated_files"
+}
+
+# Main logic to modify the commit message
+main() {
+  # Read the original commit message
+  commit_msg=$(cat "$commit_msg_file")
+  
+  # Check if the commit message already has a prefix
+  if ! has_prefix; then
+    # Extract the current branch name
+    branch_name=$(git rev-parse --abbrev-ref HEAD)
+    
+    # Prepend the appropriate prefix based on the branch name
+    case "$branch_name" in
+      *feat*) prefix="feat" ;;
+      *fix*) prefix="fix" ;;
+      *docs*) prefix="docs" ;;
+      *style*) prefix="style" ;;
+      *refactor*) prefix="refactor" ;;
+      *test*) prefix="test" ;;
+      *chore*) prefix="chore" ;;
+      *perf*) prefix="perf" ;;
+      *ci*) prefix="ci" ;;
+      *) prefix="chore" ;;  # Default to chore if no specific match
+    esac
+    
+    # Modify the commit message
+    new_commit_msg="$prefix($branch_name): $commit_msg$(generate_file_list)"
+    echo "$new_commit_msg" > "$commit_msg_file"
+  fi
+}
+
+# Execute main function
+main
