@@ -9,7 +9,7 @@ DEFAULT_PREFIX="chore"
 # Function to extract the prefix from the commit message
 function extract_prefix {
   for prefix in "${PREFIXES[@]}"; do
-    if [[ "$1" == "$prefix("* ]]; then
+    if [[ "$1" == "$prefix"* ]]; then
       echo $prefix
       return 0
     fi
