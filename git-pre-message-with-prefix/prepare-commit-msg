@@ -1,68 +1,53 @@
 #!/bin/bash
 
-# The commit message file
+# Get the commit message file path
 COMMIT_MSG_FILE=$1
-
-# Read the commit message
-COMMIT_MSG=$(cat $COMMIT_MSG_FILE)
-
-# Get the current branch name
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
-
-# Define the default prefix
+PREFIXES=("feat" "fix" "docs" "style" "refactor" "test" "chore" "perf" "ci")
 DEFAULT_PREFIX="chore"
 
-# Define allowed prefixes
-PREFIXES="feat|fix|docs|style|refactor|test|chore|perf|ci"
-
-# Extract the prefix if it exists
-if [[ $COMMIT_MSG =~ ^\s*($PREFIXES)\((.*)\):(.*)$ ]]; then
-    PREFIX=${BASH_REMATCH[1]}
-    EXISTING_BRANCH_NAME=${BASH_REMATCH[2]}
-    REST_OF_MESSAGE=${BASH_REMATCH[3]}
-    if [[ $EXISTING_BRANCH_NAME == $BRANCH_NAME ]]; then
-        # Prefix and branch name already exist, do nothing
-        FINAL_COMMIT_MSG=$COMMIT_MSG
-    else
-        # Prefix exists but branch name does not
-        FINAL_COMMIT_MSG="$PREFIX($BRANCH_NAME): $REST_OF_MESSAGE"
+# Function to extract the prefix from the commit message
+function extract_prefix {
+  for prefix in "${PREFIXES[@]}"; do
+    if [[ "$1" == "$prefix("* ]]; then
+      echo $prefix
+      return 0
     fi
+  done
+  return 1
+}
+
+# Read the commit message
+ORIGINAL_MESSAGE=$(cat "$COMMIT_MSG_FILE")
+
+# Extract the existing prefix (if any)
+EXISTING_PREFIX=$(extract_prefix "$ORIGINAL_MESSAGE")
+
+# Process the commit message
+NEW_MESSAGE=$ORIGINAL_MESSAGE
+
+if [ -z "$EXISTING_PREFIX" ]; then
+  # Add default prefix and branch name
+  NEW_MESSAGE="$DEFAULT_PREFIX($BRANCH_NAME): $ORIGINAL_MESSAGE"
 else
-    # Prefix does not exist, add default prefix and branch name
-    FINAL_COMMIT_MSG="$DEFAULT_PREFIX($BRANCH_NAME): $COMMIT_MSG"
+  # Check if branch name is included after the existing prefix
+  if [[ ! "$ORIGINAL_MESSAGE" == *"$BRANCH_NAME:"* ]]; then
+    NEW_MESSAGE="${EXISTING_PREFIX}($BRANCH_NAME): ${ORIGINAL_MESSAGE#*: }"
+  fi
 fi
 
-# Gather the list of new, edited, and deleted files
-NEW_FILES=$(git diff --cached --name-status | grep "^A" | cut -f2)
-EDITED_FILES=$(git diff --cached --name-status | grep "^M" | cut -f2)
-DELETED_FILES=$(git diff --cached --name-status | grep "^D" | cut -f2)
+# Get list of files for the commit
+NEW_FILES=$(git diff --cached --name-status | grep '^A' | cut -f2-)
+EDITED_FILES=$(git diff --cached --name-status | grep '^M' | cut -f2-)
+DELETED_FILES=$(git diff --cached --name-status | grep '^D' | cut -f2-)
 
-# Convert the lists to comma-separated strings
-if [ -n "$NEW_FILES" ]; then
-    NEW_FILES_LIST=$(echo "$NEW_FILES" | tr '\n' ', ' | sed 's/, $//')
-else
-    NEW_FILES_LIST=""
-fi
-
-if [ -n "$EDITED_FILES" ]; then
-    EDITED_FILES_LIST=$(echo "$EDITED_FILES" | tr '\n' ', ' | sed 's/, $//')
-else
-    EDITED_FILES_LIST=""
-fi
-
-if [ -n "$DELETED_FILES" ]; then
-    DELETED_FILES_LIST=$(echo "$DELETED_FILES" | tr '\n' ', ' | sed 's/, $//')
-else
-    DELETED_FILES_LIST=""
-fi
-
-# Append the file lists to the commit message
-FINAL_COMMIT_MSG="$FINAL_COMMIT_MSG
+# Append the file lists to the message
+NEW_MESSAGE="$NEW_MESSAGE
 
 # Files
-NEW: $NEW_FILES_LIST
-EDITED: $EDITED_FILES_LIST
-DELETED: $DELETED_FILES_LIST"
+NEW: ${NEW_FILES//[$'\n']/, }
+EDITED: ${EDITED_FILES//[$'\n']/, }
+DELETED: ${DELETED_FILES//[$'\n']/, }"
 
-# Write the final commit message back to the file
-echo "$FINAL_COMMIT_MSG" > $COMMIT_MSG_FILE
+# Write the new commit message to the file
+echo "$NEW_MESSAGE" > "$COMMIT_MSG_FILE"
