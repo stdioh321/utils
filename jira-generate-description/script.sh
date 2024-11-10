@@ -129,7 +129,7 @@ echo "Gerando descrição detalhada da task '$ISSUE_ID: $TITLE'"
 # Define o comando ollama para gerar a descrição detalhada
 OLLAMA_COMMAND="ollama run $OLLAMA_MODEL"
 OLLAMA_INPUT="""
-Gerar em markdown uma descrição mais detalhada de task do Jira
+Gerar em markdown uma descrição completa e mais detalhada de task do Jira (min: 5 linhas)
 * deve adicionar uma seção com BDD (min: 3)
 * deve adicionar seção de Criterios de aceite (min: 3)
     * Criterios padrão
@@ -138,7 +138,9 @@ Gerar em markdown uma descrição mais detalhada de task do Jira
         * Se possuir novas variaveis de ambiente, devem estar descritas na task
         * Se outra task for necessaria para a conclusão da task, a mesma deve ser criada e referenciada
         * Se faltar informações para conclusão da task, quem possuir o conhecimento, deve ser informado e citado na task
-* json com dados da task: '{ "title": \"$TITLE\", "description": \"$DESCRIPTION\" }'
+
+
+informações sobre a task: '{ "title": \"$TITLE\", "description": \"$DESCRIPTION\" }'
 """
 
 # Cria um arquivo temporário para armazenar o output
